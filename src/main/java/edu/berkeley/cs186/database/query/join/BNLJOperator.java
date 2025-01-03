@@ -15,6 +15,7 @@ import java.util.NoSuchElementException;
  */
 public class BNLJOperator extends JoinOperator {
     protected int numBuffers;
+    protected int usableBuffers;
 
     public BNLJOperator(QueryOperator leftSource,
                         QueryOperator rightSource,
@@ -25,6 +26,7 @@ public class BNLJOperator extends JoinOperator {
                 leftColumnName, rightColumnName, transaction, JoinType.BNLJ
         );
         this.numBuffers = transaction.getWorkMemSize();
+        this.usableBuffers = this.numBuffers - 2;
         this.stats = this.estimateStats();
     }
 

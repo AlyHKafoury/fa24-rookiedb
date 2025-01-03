@@ -137,7 +137,6 @@ public class TestLeafNode {
         for (int i = 0; i < 2 * d; ++i) {
             DataBox key = new IntDataBox(i);
             RecordId rid = new RecordId(i, (short) i);
-
             // Leaf should never overflow during the first 2d puts
             assertEquals(Optional.empty(), leaf.put(key, rid));
 
@@ -166,6 +165,7 @@ public class TestLeafNode {
 
         // Then read the leaf from disk.
         long pageNum = leaf.getPage().getPageNum();
+
         LeafNode fromDisk = LeafNode.fromBytes(metadata, bufferManager, treeContext, pageNum);
 
         // Check to see that we can read from disk.

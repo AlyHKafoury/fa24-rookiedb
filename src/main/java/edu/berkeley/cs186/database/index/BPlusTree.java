@@ -147,7 +147,7 @@ public class BPlusTree {
 
         // TODO(proj2): implement
 
-        return Optional.empty();
+        return this.root.get(key).getKey(key);
     }
 
     /**
@@ -203,7 +203,7 @@ public class BPlusTree {
 
         // TODO(proj2): Return a BPlusTreeIterator.
 
-        return Collections.emptyIterator();
+        return new BPlusTreeIterator(root, null);
     }
 
     /**
@@ -236,7 +236,7 @@ public class BPlusTree {
 
         // TODO(proj2): Return a BPlusTreeIterator.
 
-        return Collections.emptyIterator();
+        return new BPlusTreeIterator(root, key);
     }
 
     /**
@@ -257,7 +257,16 @@ public class BPlusTree {
         // Note: You should NOT update the root variable directly.
         // Use the provided updateRoot() helper method to change
         // the tree's root if the old root splits.
-
+        Optional<Pair<DataBox, Long>> overflowKey = this.root.put(key, rid);
+        BPlusNode oldRoot = this.root;
+        if(overflowKey.isPresent()) {
+            List<DataBox> newKeys = new ArrayList<>();
+            List<Long> newChildren = new ArrayList<>();
+            newKeys.add(overflowKey.get().getFirst());
+            newChildren.add(oldRoot.getPage().getPageNum());
+            newChildren.add(overflowKey.get().getSecond());
+            this.updateRoot(new InnerNode(this.metadata, bufferManager, newKeys, newChildren, lockContext));
+        }
         return;
     }
 
@@ -288,7 +297,19 @@ public class BPlusTree {
         // Note: You should NOT update the root variable directly.
         // Use the provided updateRoot() helper method to change
         // the tree's root if the old root splits.
-
+        Optional<Pair<DataBox, Long>> overflowKey = Optional.empty();
+        while (data.hasNext()) {
+            overflowKey = this.root.bulkLoad(data, fillFactor);
+            BPlusNode oldRoot = this.root;
+            if(overflowKey.isPresent()) {
+                List<DataBox> newKeys = new ArrayList<>();
+                List<Long> newChildren = new ArrayList<>();
+                newKeys.add(overflowKey.get().getFirst());
+                newChildren.add(oldRoot.getPage().getPageNum());
+                newChildren.add(overflowKey.get().getSecond());
+                this.updateRoot(new InnerNode(this.metadata, bufferManager, newKeys, newChildren, lockContext));
+            }
+        }
         return;
     }
 
@@ -309,7 +330,7 @@ public class BPlusTree {
         LockUtil.ensureSufficientLockHeld(lockContext, LockType.NL);
 
         // TODO(proj2): implement
-
+        this.root.remove(key);
         return;
     }
 
@@ -424,18 +445,37 @@ public class BPlusTree {
     private class BPlusTreeIterator implements Iterator<RecordId> {
         // TODO(proj2): Add whatever fields and constructors you want here.
 
+        private LeafNode currentNode;
+        private Iterator<RecordId> iter;
+
+        public BPlusTreeIterator(BPlusNode root, DataBox key){
+            if(key == null) {
+                this.currentNode = root.getLeftmostLeaf();
+                this.iter = currentNode.getLeftmostLeaf().scanAll();
+            } else {
+                this.currentNode = root.get(key);
+                this.iter = currentNode.getLeftmostLeaf().scanGreaterEqual(key);
+            }
+        }
+
         @Override
         public boolean hasNext() {
             // TODO(proj2): implement
-
+            Optional<LeafNode> rightSibling;
+            if(iter.hasNext()) {
+                return true;
+            } else if ((rightSibling = currentNode.getRightSibling()).isPresent() ) {
+                this.currentNode = rightSibling.get();
+                this.iter = currentNode.scanAll();
+                return true;
+            }
             return false;
         }
 
         @Override
         public RecordId next() {
             // TODO(proj2): implement
-
-            throw new NoSuchElementException();
+            return this.iter.next();
         }
     }
 }
