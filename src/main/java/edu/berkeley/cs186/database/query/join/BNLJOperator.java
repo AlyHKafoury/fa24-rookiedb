@@ -1,12 +1,18 @@
 package edu.berkeley.cs186.database.query.join;
 
 import edu.berkeley.cs186.database.TransactionContext;
+import edu.berkeley.cs186.database.common.iterator.ArrayBacktrackingIterator;
 import edu.berkeley.cs186.database.common.iterator.BacktrackingIterator;
 import edu.berkeley.cs186.database.query.JoinOperator;
 import edu.berkeley.cs186.database.query.QueryOperator;
+import edu.berkeley.cs186.database.table.PageDirectory;
 import edu.berkeley.cs186.database.table.Record;
+import edu.berkeley.cs186.database.table.Schema;
+import edu.berkeley.cs186.database.table.Table;
 
+import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 import java.util.NoSuchElementException;
 
 /**
@@ -16,6 +22,7 @@ import java.util.NoSuchElementException;
 public class BNLJOperator extends JoinOperator {
     protected int numBuffers;
     protected int usableBuffers;
+    protected Schema outputSchema;
 
     public BNLJOperator(QueryOperator leftSource,
                         QueryOperator rightSource,
@@ -28,6 +35,7 @@ public class BNLJOperator extends JoinOperator {
         this.numBuffers = transaction.getWorkMemSize();
         this.usableBuffers = this.numBuffers - 2;
         this.stats = this.estimateStats();
+        this.outputSchema = this.computeSchema();
     }
 
     @Override
@@ -63,16 +71,18 @@ public class BNLJOperator extends JoinOperator {
         private Record leftRecord;
         // The next record to return
         private Record nextRecord;
+        private int numtillnow = 0;
 
         private BNLJIterator() {
             super();
             this.leftSourceIterator = getLeftSource().iterator();
-            this.fetchNextLeftBlock();
+            this.fetchNextLeftBlock(leftSourceIterator, outputSchema, usableBuffers);
+            this.leftBlockIterator.markPrev();
 
             this.rightSourceIterator = getRightSource().backtrackingIterator();
             this.rightSourceIterator.markNext();
-            this.fetchNextRightPage();
-
+            this.fetchNextRightPage(rightSourceIterator, outputSchema);
+            this.rightPageIterator.markNext();
             this.nextRecord = null;
         }
 
@@ -88,8 +98,23 @@ public class BNLJOperator extends JoinOperator {
          * You may find QueryOperator#getBlockIterator useful here.
          * Make sure you pass in the correct schema to this method.
          */
-        private void fetchNextLeftBlock() {
+        private void fetchNextLeftBlock(Iterator<Record> records, Schema schema, int maxPages) {
             // TODO(proj3_part1): implement
+            int recordsPerPage = 400;
+            if(joinType == JoinType.PNLJ) {
+                recordsPerPage = 400;
+                maxPages = 1;
+            }
+            int maxRecords = recordsPerPage * maxPages;
+            List<Record> blockRecords = new ArrayList<>();
+            if(!records.hasNext()) {
+                return;
+            }
+            for (int i = 0; i < maxRecords && records.hasNext(); i++) {
+                blockRecords.add(records.next());
+            }
+            this.leftBlockIterator =  new ArrayBacktrackingIterator<>(blockRecords);
+            this.leftRecord = this.leftBlockIterator.next();
         }
 
         /**
@@ -103,8 +128,21 @@ public class BNLJOperator extends JoinOperator {
          * You may find QueryOperator#getBlockIterator useful here.
          * Make sure you pass in the correct schema to this method.
          */
-        private void fetchNextRightPage() {
+        private void fetchNextRightPage(Iterator<Record> records, Schema schema) {
             // TODO(proj3_part1): implement
+            int recordsPerPage = 400;
+            if(joinType == JoinType.PNLJ) {
+                recordsPerPage = 400;
+            }
+            int maxRecords = recordsPerPage;
+            List<Record> pageRecords = new ArrayList<>();
+            if(!records.hasNext()) {
+                return;
+            }
+            for (int i = 0; i < maxRecords && records.hasNext(); i++) {
+                pageRecords.add(records.next());
+            }
+            this.rightPageIterator =  new ArrayBacktrackingIterator<>(pageRecords);
         }
 
         /**
@@ -117,7 +155,38 @@ public class BNLJOperator extends JoinOperator {
          */
         private Record fetchNextRecord() {
             // TODO(proj3_part1): implement
-            return null;
+//            if (leftRecord == null) {
+//                // The left source was empty, nothing to fetch
+//                return null;
+//            }
+            while(true) {
+                if (this.rightPageIterator.hasNext()) {
+//                    System.out.println("Checked right item in page");
+                    Record rightRecord = rightPageIterator.next();
+                    if (compare(leftRecord, rightRecord) == 0) {
+                        numtillnow += 1;
+//                        System.out.println(numtillnow);
+                        return leftRecord.concat(rightRecord);
+                    }
+                }else if (leftBlockIterator.hasNext()){
+//                    System.out.println("Checked next item in block");
+                    this.leftRecord = leftBlockIterator.next();
+                    this.rightPageIterator.reset();
+                } else if (this.rightSourceIterator.hasNext()){
+                    fetchNextRightPage(rightSourceIterator, outputSchema);
+                    this.rightPageIterator.markNext();
+                    this.leftBlockIterator.reset();
+                    this.leftRecord = this.leftBlockIterator.next();
+                } else if(this.leftSourceIterator.hasNext()) {
+                    fetchNextLeftBlock(leftSourceIterator, outputSchema, usableBuffers);
+                    this.leftBlockIterator.markPrev();
+                    this.rightSourceIterator.reset();
+                    fetchNextRightPage(rightSourceIterator, outputSchema);
+                    this.rightPageIterator.markNext();
+                } else {
+                    return null;
+                }
+            }
         }
 
         /**

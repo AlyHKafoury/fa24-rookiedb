@@ -305,7 +305,9 @@ public class TestNestedLoopJoin {
             Record expectedRecord = new Record(true, 1, "a", 1.2f, true, 1, "a", 1.2f);
 
             while (outputIterator.hasNext() && numRecords < 100 * 100) {
-                assertEquals("mismatch at record " + numRecords, expectedRecord, outputIterator.next());
+                Record testRecord = outputIterator.next();
+                //System.out.println(testRecord);
+                assertEquals("mismatch at record " + numRecords, expectedRecord, testRecord);
                 numRecords++;
             }
             checkIOs(0);
@@ -384,22 +386,24 @@ public class TestNestedLoopJoin {
 
             int count = 0;
             while (outputIterator.hasNext() && count < 400 * 400 * 2) {
+                Record testRecord = outputIterator.next();
+//                System.out.println(testRecord);
                 if (count < 200 * 200) {
-                    assertEquals("mismatch at record " + count, expectedRecord1, outputIterator.next());
+                    assertEquals("mismatch at record " + count, expectedRecord1, testRecord);
                 } else if (count < 200 * 200 * 2) {
-                    assertEquals("mismatch at record " + count, expectedRecord2, outputIterator.next());
+                    assertEquals("mismatch at record " + count, expectedRecord2, testRecord);
                 } else if (count < 200 * 200 * 3) {
-                    assertEquals("mismatch at record " + count, expectedRecord1, outputIterator.next());
+                    assertEquals("mismatch at record " + count, expectedRecord1, testRecord);
                 } else if (count < 200 * 200 * 4) {
-                    assertEquals("mismatch at record " + count, expectedRecord2, outputIterator.next());
+                    assertEquals("mismatch at record " + count, expectedRecord2, testRecord);
                 } else if (count < 200 * 200 * 5) {
-                    assertEquals("mismatch at record " + count, expectedRecord2, outputIterator.next());
+                    assertEquals("mismatch at record " + count, expectedRecord2, testRecord);
                 } else if (count < 200 * 200 * 6) {
-                    assertEquals("mismatch at record " + count, expectedRecord1, outputIterator.next());
+                    assertEquals("mismatch at record " + count, expectedRecord1, testRecord);
                 } else if (count < 200 * 200 * 7) {
-                    assertEquals("mismatch at record " + count, expectedRecord2, outputIterator.next());
+                    assertEquals("mismatch at record " + count, expectedRecord2, testRecord);
                 } else {
-                    assertEquals("mismatch at record " + count, expectedRecord1, outputIterator.next());
+                    assertEquals("mismatch at record " + count, expectedRecord1, testRecord);
                 }
                 count++;
 
