@@ -139,8 +139,61 @@ public class SortMergeOperator extends JoinOperator {
          * or null if there are no more records to join.
          */
         private Record fetchNextRecord() {
-            // TODO(proj3_part1): implement
-            return null;
+            if (leftRecord == null) {
+                // The left source was empty, nothing to fetch
+                return null;
+            }
+            while(true) {
+                if(!marked) {
+                    while (compare(leftRecord, rightRecord) == -1 ) {
+//                        System.out.println("Speeding Left");
+                        if(this.leftIterator.hasNext()) {
+                            this.leftRecord = leftIterator.next();
+                        } else {
+                            this.leftRecord = null;
+                            return null;
+                        }
+                    }
+                    while (compare(leftRecord, rightRecord) == 1 ) {
+//                        System.out.println("Speeding right");
+                        if(this.rightIterator.hasNext()) {
+                            this.rightRecord = rightIterator.next();
+                        } else {
+                            return null;
+                        }
+                    }
+                    this.rightIterator.markPrev();
+                    marked = true;
+//                    System.out.println("Came here");
+                }
+                if (compare(leftRecord, rightRecord) == 0) {
+                    Record result = leftRecord.concat(rightRecord);
+                    if(this.rightIterator.hasNext()) {
+                        this.rightRecord = rightIterator.next();
+                    }
+                    else {
+                        if(this.leftIterator.hasNext()) {
+                            this.leftRecord = leftIterator.next();
+                            this.rightIterator.reset();
+                            this.rightRecord = this.rightIterator.next();
+                            marked = false;
+                        } else {
+                            this.leftRecord = null;
+                        }
+                    }
+                    return result;
+                } else {
+                    if(this.leftIterator.hasNext()) {
+                        this.leftRecord = leftIterator.next();
+                        this.rightIterator.reset();
+                        this.rightRecord = this.rightIterator.next();
+                    } else {
+                        this.leftRecord = null;
+                        return null;
+                    }
+                    marked = false;
+                }
+            }
         }
 
         @Override

@@ -131,11 +131,18 @@ public class TestSortMergeJoin {
             Record expected = new Record(true, 1, "a", 1.2f, true, 1, "a", 1.2f);
 
             while (outputIterator.hasNext() && numRecords < 100 * 100) {
-                assertEquals("mismatch at record " + numRecords, expected, outputIterator.next());
+                Record test = outputIterator.next();
+//                System.out.println(test);
+                assertEquals("mismatch at record " + numRecords, expected, test);
                 numRecords++;
             }
             checkIOs(0);
-
+            while (outputIterator.hasNext()){
+                outputIterator.next();
+                numRecords++;
+            }
+            System.out.println(numRecords);
+//            System.out.println(outputIterator.next());
             assertFalse("too many records", outputIterator.hasNext());
             outputIterator.hasNext();
             assertEquals("too few records", 100 * 100, numRecords);
