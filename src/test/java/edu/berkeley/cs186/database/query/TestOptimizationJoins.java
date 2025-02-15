@@ -203,7 +203,7 @@ public class TestOptimizationJoins {
             query.execute();
 
             QueryOperator finalOperator = query.getFinalOperator();
-
+//            System.out.println(finalOperator.toString());
             // Check that the select operator was pushed down
             assertTrue(finalOperator.toString().contains("\t-> Select t2.int=9"));
         }
